@@ -10,6 +10,7 @@ class PostsControllerTest < ActionController::TestCase
     get :index
     assert_response :success
     assert json_response['data'].is_a?(Array)
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_index_filter_with_empty_result
@@ -17,6 +18,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert json_response['data'].is_a?(Array)
     assert_equal 0, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[title]=post%20that%20does%20not%20exist', json_response['links']['self']
   end
 
   def test_index_filter_by_id
@@ -24,6 +26,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert json_response['data'].is_a?(Array)
     assert_equal 1, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[id]=1', json_response['links']['self']
   end
 
   def test_index_filter_by_title
@@ -31,6 +34,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert json_response['data'].is_a?(Array)
     assert_equal 1, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[title]=New%20post', json_response['links']['self']
   end
 
   def test_index_filter_by_ids
@@ -38,6 +42,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert json_response['data'].is_a?(Array)
     assert_equal 2, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[id]=1,2', json_response['links']['self']
   end
 
   def test_index_filter_by_ids_and_include_related
@@ -45,6 +50,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal 1, json_response['data'].size
     assert_equal 1, json_response['included'].size
+    assert_equal 'http://test.host/posts?filter[id]=2&include=comments', json_response['links']['self']
   end
 
   def test_index_filter_by_ids_and_include_related_different_type
@@ -52,6 +58,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal 2, json_response['data'].size
     assert_equal 1, json_response['included'].size
+    assert_equal 'http://test.host/posts?filter[id]=1,2&include=comments', json_response['links']['self']
   end
 
   def test_index_filter_by_ids_and_fields
@@ -65,6 +72,7 @@ class PostsControllerTest < ActionController::TestCase
     assert json_response['data'][0].has_key?('id')
     assert json_response['data'][0].has_key?('title')
     assert json_response['data'][0].has_key?('links')
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields=id,title,author', json_response['links']['self']
   end
 
   def test_index_filter_by_ids_and_fields_specify_type
@@ -78,6 +86,7 @@ class PostsControllerTest < ActionController::TestCase
     assert json_response['data'][0].has_key?('id')
     assert json_response['data'][0].has_key?('title')
     assert json_response['data'][0].has_key?('links')
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields[posts]=id,title,author', json_response['links']['self']
   end
 
   def test_index_filter_by_ids_and_fields_specify_unrelated_type
@@ -96,6 +105,7 @@ class PostsControllerTest < ActionController::TestCase
     assert json_response['data'][0].has_key?('type')
     assert json_response['data'][0].has_key?('id')
     assert json_response['data'][0]['links'].has_key?('author')
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields=author', json_response['links']['self']
   end
 
   def test_filter_association_single
@@ -105,6 +115,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_match /New post/, response.body
     assert_match /JR Solves your serialization woes!/, response.body
     assert_match /JR How To/, response.body
+    assert_equal 'http://test.host/posts?filter[tags]=5,1', json_response['links']['self']
   end
 
   def test_filter_associations_multiple
@@ -112,66 +123,77 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal 1, json_response['data'].size
     assert_match /JR Solves your serialization woes!/, response.body
+    assert_equal 'http://test.host/posts?filter[tags]=5,1&filter[comments]=3', json_response['links']['self']
   end
 
   def test_filter_associations_multiple_not_found
     get :index, {filter: {tags: '1', comments: '3'}}
     assert_response :success
     assert_equal 0, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[tags]=1&filter[comments]=3', json_response['links']['self']
   end
 
   def test_bad_filter
     get :index, {filter: {post_ids: '1,2'}}
     assert_response :bad_request
     assert_match /post_ids is not allowed/, response.body
+    assert_equal 'http://test.host/posts?filter[post_ids]=1,2', json_response['links']['self']
   end
 
   def test_bad_filter_value_not_integer_array
     get :index, {filter: {id: 'asdfg'}}
     assert_response :bad_request
     assert_match /asdfg is not a valid value for id/, response.body
+    assert_equal 'http://test.host/posts?filter[id]=asdfg', json_response['links']['self']
   end
 
   def test_bad_filter_value_not_integer
     get :index, {filter: {id: 'asdfg'}}
     assert_response :bad_request
     assert_match /asdfg is not a valid value for id/, response.body
+    assert_equal 'http://test.host/posts?filter[id]=asdfg', json_response['links']['self']
   end
 
   def test_bad_filter_value_not_found_array
     get :index, {filter: {id: '5412333'}}
     assert_response :not_found
     assert_match /5412333 could not be found/, response.body
+    assert_equal 'http://test.host/posts?filter[id]=5412333', json_response['links']['self']
   end
 
   def test_bad_filter_value_not_found
     get :index, {filter: {id: '5412333'}}
     assert_response :not_found
     assert_match /5412333 could not be found/, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts?filter[id]=5412333', json_response['links']['self']
   end
 
   def test_index_malformed_fields
     get :index, {filter: {id: '1,2'}, 'fields' => 'posts'}
     assert_response :bad_request
     assert_match /posts is not a valid field for posts./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields=posts', json_response['links']['self']
   end
 
   def test_field_not_supported
     get :index, {filter: {id: '1,2'}, 'fields' => {'posts' => 'id,title,rank,author'}}
     assert_response :bad_request
     assert_match /rank is not a valid field for posts./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields[posts]=id,title,rank,author', json_response['links']['self']
   end
 
   def test_resource_not_supported
     get :index, {filter: {id: '1,2'}, 'fields' => {'posters' => 'id,title'}}
     assert_response :bad_request
     assert_match /posters is not a valid resource./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts?filter[id]=1,2&fields[posters]=id,title', json_response['links']['self']
   end
 
   def test_index_filter_on_association
     get :index, {filter: {author: '1'}}
     assert_response :success
     assert_equal 3, json_response['data'].size
+    assert_equal 'http://test.host/posts?filter[author]=1', json_response['links']['self']
   end
 
   def test_sorting_asc
@@ -179,6 +201,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :success
     assert_equal "Delete This Later - Multiple2-1", json_response['data'][0]['title']
+    assert_equal 'http://test.host/posts?sort=+title', json_response['links']['self']
   end
 
   def test_sorting_desc
@@ -186,6 +209,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :success
     assert_equal "Update This Later - Multiple", json_response['data'][0]['title']
+    assert_equal 'http://test.host/posts?sort=-title', json_response['links']['self']
   end
 
   def test_sorting_by_multiple_fields
@@ -193,6 +217,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :success
     assert_equal '8', json_response['data'][0]['id']
+    assert_equal 'http://test.host/posts?sort=+title,+body', json_response['links']['self']
   end
 
   def test_invalid_sort_param
@@ -200,6 +225,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /asdfg is not a valid sort criteria for post/, response.body
+    assert_equal 'http://test.host/posts?sort=+asdfg', json_response['links']['self']
   end
 
   def test_invalid_sort_param_missing_direction
@@ -207,6 +233,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /title must start with a direction/, response.body
+    assert_equal 'http://test.host/posts?sort=title', json_response['links']['self']
   end
 
   def test_excluded_sort_param
@@ -214,6 +241,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /id is not a valid sort criteria for post/, response.body
+    assert_equal 'http://test.host/posts?sort=+id', json_response['links']['self']
   end
 
   # ToDo: test validating the parameter values
@@ -229,6 +257,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal 'New post', json_response['data']['title']
     assert_equal 'A body!!!', json_response['data']['body']
     assert_nil json_response['included']
+    assert_equal 'http://test.host/posts/1', json_response['links']['self']
   end
 
   def test_show_single_with_includes
@@ -240,6 +269,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_nil json_response['data']['links']['tags']['ids']
     assert_equal ['1', '2'], json_response['data']['links']['comments']['ids']
     assert_equal 2, json_response['included'].size
+    assert_equal 'http://test.host/posts/1?include=comments', json_response['links']['self']
   end
 
   def test_show_single_with_fields
@@ -249,30 +279,35 @@ class PostsControllerTest < ActionController::TestCase
     assert_nil json_response['data']['title']
     assert_nil json_response['data']['body']
     assert_equal '1', json_response['data']['links']['author']['id']
+    assert_equal 'http://test.host/posts/1?fields=author', json_response['links']['self']
   end
 
   def test_show_single_invalid_id_format
     get :show, {id: 'asdfg'}
     assert_response :bad_request
     assert_match /asdfg is not a valid value for id/, response.body
+    assert_equal 'http://test.host/posts/asdfg', json_response['links']['self']
   end
 
   def test_show_single_missing_record
     get :show, {id: '5412333'}
     assert_response :not_found
     assert_match /record identified by 5412333 could not be found/, response.body
+    assert_equal 'http://test.host/posts/5412333', json_response['links']['self']
   end
 
   def test_show_malformed_fields_not_list
     get :show, {id: '1', 'fields' => ''}
     assert_response :bad_request
     assert_match /nil is not a valid field for posts./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts/1?fields=', json_response['links']['self']
   end
 
   def test_show_malformed_fields_type_not_list
     get :show, {id: '1', 'fields' => {'posts' => ''}}
     assert_response :bad_request
     assert_match /nil is not a valid field for posts./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts/1?fields[posts]=', json_response['links']['self']
   end
 
   def test_create_simple
@@ -294,6 +329,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal '3', json_response['data']['links']['author']['id']
     assert_equal 'JR is Great', json_response['data']['title']
     assert_equal 'JSONAPIResources is the greatest thing since unsliced bread.', json_response['data']['body']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_link_to_missing_object
@@ -313,6 +349,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :unprocessable_entity
     # Todo: check if this validation is working
     assert_match /author - can't be blank/, response.body
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_extra_param
@@ -332,6 +369,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /asdfg is not allowed/, response.body
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_with_invalid_data
@@ -357,6 +395,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal "/title", json_response['errors'][1]['path']
     assert_equal "is too long (maximum is 35 characters)", json_response['errors'][1]['detail']
     assert_equal "title - is too long (maximum is 35 characters)", json_response['errors'][1]['title']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_multiple
@@ -389,6 +428,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal json_response['data'][0]['links']['author']['id'], '3'
     assert_match /JR is Great/, response.body
     assert_match /Ember is Great/, response.body
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_multiple_wrong_case
@@ -417,6 +457,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Title/, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_simple_missing_posts
@@ -435,6 +476,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, data, is missing./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_simple_wrong_type
@@ -453,6 +495,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /posts_spelled_wrong is not a valid resource./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_simple_missing_type
@@ -470,6 +513,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, type, is missing./, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_simple_unpermitted_attributes
@@ -488,6 +532,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /subject/, json_response['errors'][0]['detail']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_with_links_has_many_type_ids
@@ -510,6 +555,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal '3', json_response['data']['links']['author']['id']
     assert_equal 'JR is Great', json_response['data']['title']
     assert_equal 'JSONAPIResources is the greatest thing since unsliced bread.', json_response['data']['body']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_with_links_has_many_array
@@ -532,6 +578,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal '3', json_response['data']['links']['author']['id']
     assert_equal 'JR is Great', json_response['data']['title']
     assert_equal 'JSONAPIResources is the greatest thing since unsliced bread.', json_response['data']['body']
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_create_with_links_include_and_fields
@@ -556,6 +603,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal '3', json_response['data']['links']['author']['id']
     assert_equal 'JR is Great!', json_response['data']['title']
     assert_not_nil json_response['included'].size
+    assert_equal 'http://test.host/posts', json_response['links']['self']
   end
 
   def test_update_with_links
@@ -584,6 +632,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal 'A great new Post', json_response['data']['title']
     assert_equal 'AAAA', json_response['data']['body']
     assert matches_array?(['3', '4'], json_response['data']['links']['tags']['ids'])
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_remove_links
@@ -610,6 +659,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal 'A great new Post', json_response['data']['title']
     assert_equal 'AAAA', json_response['data']['body']
     assert matches_array?([], json_response['data']['links']['tags']['ids'])
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_relationship_has_one
@@ -631,6 +681,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Invalid Links Object/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_relationship_has_one_invalid_links_hash_count
@@ -639,6 +690,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Invalid Links Object/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_relationship_has_one_invalid_links_hash_keys_type_mismatch
@@ -647,6 +699,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Type Mismatch/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_nil_has_many_links
@@ -665,6 +718,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Invalid Links Object/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_bad_hash_has_many_links
@@ -683,6 +737,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Invalid Links Object/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_other_has_many_links
@@ -701,6 +756,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Invalid Links Object/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_relationship_has_one_singular_param_id_nil
@@ -823,6 +879,8 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Type Mismatch/, response.body
+    assert_equal 'http://test.host/posts/3/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/3/tags', json_response['links']['related']
   end
 
   def test_create_relationship_has_many_missing_id
@@ -831,6 +889,8 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, ids, is missing/, response.body
+    assert_equal 'http://test.host/posts/3/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/3/tags', json_response['links']['related']
   end
 
   def test_create_relationship_has_many_missing_data
@@ -839,6 +899,8 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, data, is missing./, response.body
+    assert_equal 'http://test.host/posts/3/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/3/tags', json_response['links']['related']
   end
 
   def test_create_relationship_has_many_join
@@ -860,6 +922,8 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The relation to 2 already exists./, response.body
+    assert_equal 'http://test.host/posts/3/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/3/tags', json_response['links']['related']
   end
 
   def test_update_relationship_has_many_missing_tags
@@ -868,6 +932,8 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, data, is missing./, response.body
+    assert_equal 'http://test.host/posts/3/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/3/tags', json_response['links']['related']
   end
 
   def test_delete_relationship_has_many
@@ -896,6 +962,8 @@ class PostsControllerTest < ActionController::TestCase
     p.reload
     assert_response :not_found
     assert_equal [2, 3], p.tag_ids
+    assert_equal 'http://test.host/posts/9/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/posts/9/tags', json_response['links']['related']
   end
 
   def test_delete_relationship_has_many_with_empty_data
@@ -932,6 +1000,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The URL does not support the key 2/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_extra_param
@@ -955,6 +1024,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /asdfg is not allowed/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_extra_param_in_links
@@ -978,6 +1048,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /asdfg is not allowed/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_missing_param
@@ -999,6 +1070,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, data, is missing./, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_missing_key
@@ -1015,6 +1087,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The resource object does not contain a key/, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_missing_type
@@ -1037,6 +1110,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The required parameter, type, is missing./, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_multiple
@@ -1082,6 +1156,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_equal json_response['data'][1]['title'], 'A great new Post ASDFG'
     assert_equal json_response['data'][1]['body'], 'AAAA'
     assert_equal json_response['data'][1]['links']['tags']['ids'], ['3', '4']
+    assert_equal 'http://test.host/posts/3,9', json_response['links']['self']
   end
 
   def test_update_multiple_missing_keys
@@ -1112,6 +1187,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /A key is required/, response.body
+    assert_equal 'http://test.host/posts/3,9', json_response['links']['self']
   end
 
   def test_update_mismatch_keys
@@ -1144,6 +1220,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /The URL does not support the key 8/, response.body
+    assert_equal 'http://test.host/posts/3,9', json_response['links']['self']
   end
 
   def test_update_multiple_count_mismatch
@@ -1176,6 +1253,7 @@ class PostsControllerTest < ActionController::TestCase
 
     assert_response :bad_request
     assert_match /Count to key mismatch/, response.body
+    assert_equal 'http://test.host/posts/3,9,2', json_response['links']['self']
   end
 
   def test_update_unpermitted_attributes
@@ -1197,6 +1275,7 @@ class PostsControllerTest < ActionController::TestCase
     assert_response :bad_request
     assert_match /author is not allowed./, response.body
     assert_match /subject is not allowed./, response.body
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_update_bad_attributes
@@ -1215,6 +1294,7 @@ class PostsControllerTest < ActionController::TestCase
         }
 
     assert_response :bad_request
+    assert_equal 'http://test.host/posts/3', json_response['links']['self']
   end
 
   def test_delete_single
@@ -1236,6 +1316,7 @@ class PostsControllerTest < ActionController::TestCase
     delete :destroy, {id: '5,6,99999'}
     assert_response :not_found
     assert_equal initial_count, Post.count
+    assert_equal 'http://test.host/posts/5,6,99999', json_response['links']['self']
   end
 
   def test_delete_extra_param
@@ -1243,6 +1324,7 @@ class PostsControllerTest < ActionController::TestCase
     delete :destroy, {id: '4', asdfg: 'aaaa'}
     assert_response :bad_request
     assert_equal initial_count, Post.count
+    assert_equal 'http://test.host/posts/4', json_response['links']['self']
   end
 
   def test_show_has_one_relationship
@@ -1256,6 +1338,8 @@ class PostsControllerTest < ActionController::TestCase
                            related: 'http://test.host/posts/1/author'
                          }
                        }
+    assert_equal 'http://test.host/post/1/links/author', json_response['links']['self']
+    assert_equal 'http://test.host/post/1/author', json_response['links']['related']
   end
 
   def test_show_has_many_relationship
@@ -1269,6 +1353,8 @@ class PostsControllerTest < ActionController::TestCase
                            related: 'http://test.host/posts/1/tags'
                          }
                        }
+    assert_equal 'http://test.host/post/1/links/tags', json_response['links']['self']
+    assert_equal 'http://test.host/post/1/tags', json_response['links']['related']
   end
 end
 
